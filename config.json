@@ -1,0 +1,134 @@
+{
+  "dk_agent": "127.0.0.1:9529",
+  "service": "dd-cli",
+  "calling_chain": [
+    {
+      "name": "a",
+      "duration": 300,
+      "tags": [
+        {
+          "key": "xxx",
+          "value": "123"
+        }
+      ],
+      "children": [
+        {
+          "name": "b",
+          "duration": 200,
+          "tags": [
+            {
+              "key": "yyy",
+              "value": "123"
+            }
+          ],
+          "children": [
+            {
+              "name": "f",
+              "duration": 150,
+              "tags": [
+                {
+                  "key": "yyy",
+                  "value": "123"
+                }
+              ],
+              "children": [
+                {
+                  "name": "g",
+                  "duration": 250,
+                  "tags": [
+                    {
+                      "key": "yyy",
+                      "value": "123"
+                    }
+                  ]
+                },
+                {
+                  "name": "g",
+                  "duration": 250,
+                  "tags": [
+                    {
+                      "key": "yyy",
+                      "value": "123"
+                    }
+                  ]
+                },
+                {
+                  "name": "g",
+                  "duration": 250,
+                  "tags": [
+                    {
+                      "key": "yyy",
+                      "value": "123"
+                    }
+                  ]
+                },
+                {
+                  "name": "g",
+                  "duration": 250,
+                  "tags": [
+                    {
+                      "key": "yyy",
+                      "value": "123"
+                    }
+                  ]
+                },
+                {
+                  "name": "g",
+                  "duration": 250,
+                  "tags": [
+                    {
+                      "key": "yyy",
+                      "value": "123"
+                    }
+                  ]
+                },
+                {
+                  "name": "g",
+                  "duration": 250,
+                  "tags": [
+                    {
+                      "key": "yyy",
+                      "value": "123"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "c",
+          "duration": 100,
+          "tags": [
+            {
+              "key": "zzz",
+              "value": "123"
+            }
+          ]
+        },
+        {
+          "name": "d",
+          "duration": 100,
+          "tags": [
+            {
+              "key": "zzz",
+              "value": "123"
+            }
+          ],
+          "simultaneously": true
+        },
+        {
+          "name": "e",
+          "duration": 100,
+          "tags": [
+            {
+              "key": "zzz",
+              "value": "123"
+            }
+          ],
+          "simultaneously": true
+        }
+      ]
+    }
+  ]
+}
