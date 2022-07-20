@@ -1,132 +1,89 @@
 {
   "dk_agent": "127.0.0.1:9529",
-  "service": "dd-cli",
-  "calling_chain": [
+  "threads": 10,
+  "send_count": 100,
+  "service": "dktrace-dd-agent",
+  "trace": [
     {
-      "name": "a",
+      "resource": "/get/user/name",
+      "operatioin": "user.getUserName",
+      "span_type": "web",
       "duration": 300,
-      "tags": [
-        {
-          "key": "xxx",
-          "value": "123"
-        }
-      ],
       "children": [
         {
-          "name": "b",
+          "resource": "/authenticate",
+          "operatioin": "user.auth",
+          "span_type": "web",
           "duration": 200,
-          "tags": [
-            {
-              "key": "yyy",
-              "value": "123"
-            }
-          ],
           "children": [
             {
-              "name": "f",
-              "duration": 150,
-              "tags": [
-                {
-                  "key": "yyy",
-                  "value": "123"
-                }
-              ],
+              "resource": "/get/user/id",
+              "operatioin": "user.id",
+              "span_type": "web",
+              "duration": 300,
               "children": [
                 {
-                  "name": "g",
-                  "duration": 250,
-                  "tags": [
+                  "resource": "/get/user/school",
+                  "operatioin": "user.school",
+                  "span_type": "web",
+                  "duration": 200,
+                  "children": [
                     {
-                      "key": "yyy",
-                      "value": "123"
-                    }
-                  ]
-                },
-                {
-                  "name": "g",
-                  "duration": 250,
-                  "tags": [
-                    {
-                      "key": "yyy",
-                      "value": "123"
-                    }
-                  ]
-                },
-                {
-                  "name": "g",
-                  "duration": 250,
-                  "tags": [
-                    {
-                      "key": "yyy",
-                      "value": "123"
-                    }
-                  ]
-                },
-                {
-                  "name": "g",
-                  "duration": 250,
-                  "tags": [
-                    {
-                      "key": "yyy",
-                      "value": "123"
-                    }
-                  ]
-                },
-                {
-                  "name": "g",
-                  "duration": 250,
-                  "tags": [
-                    {
-                      "key": "yyy",
-                      "value": "123"
-                    }
-                  ]
-                },
-                {
-                  "name": "g",
-                  "duration": 250,
-                  "tags": [
-                    {
-                      "key": "yyy",
-                      "value": "123"
+                      "resource": "/get/user/class",
+                      "operatioin": "user.class",
+                      "span_type": "web",
+                      "duration": 200,
+                      "children": [
+                        {
+                          "resource": "/get/user/number",
+                          "operatioin": "user.number",
+                          "span_type": "web",
+                          "duration": 200,
+                          "tags": [
+                            {
+                              "key": "group-access-token",
+                              "value": "kjskdafhcFertyuiknbvj"
+                            }
+                          ]
+                        },
+                        {
+                          "resource": "/get/user/score",
+                          "operatioin": "user.score",
+                          "span_type": "web",
+                          "duration": 200,
+                          "error": "access deny"
+                        }
+                      ]
                     }
                   ]
                 }
               ]
             }
           ]
-        },
+        }
+      ]
+    },
+    {
+      "resource": "redis.set",
+      "operation": "set",
+      "span_type": "cache",
+      "duration": 150,
+      "tags": [
         {
-          "name": "c",
-          "duration": 100,
-          "tags": [
-            {
-              "key": "zzz",
-              "value": "123"
-            }
-          ]
-        },
+          "key": "ttl",
+          "value": 3690
+        }
+      ]
+    },
+    {
+      "resource": "select name, age, ts from 'user' where id=5678765678",
+      "operation": "mysql.query",
+      "span_typ": "db",
+      "duration": 300,
+      "tags": [
         {
-          "name": "d",
-          "duration": 100,
-          "tags": [
-            {
-              "key": "zzz",
-              "value": "123"
-            }
-          ],
-          "simultaneously": true
-        },
-        {
-          "name": "e",
-          "duration": 100,
-          "tags": [
-            {
-              "key": "zzz",
-              "value": "123"
-            }
-          ],
-          "simultaneously": true
+          "key": "db.shard",
+          "value": "xxx-xx-xxxx-xx"
         }
       ]
     }
