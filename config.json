@@ -6,37 +6,37 @@
   "trace": [
     {
       "resource": "/get/user/name",
-      "operatioin": "user.getUserName",
+      "operation": "user.getUserName",
       "span_type": "web",
       "duration": 300,
       "children": [
         {
           "resource": "/authenticate",
-          "operatioin": "user.auth",
+          "operation": "user.auth",
           "span_type": "web",
           "duration": 200,
           "children": [
             {
               "resource": "/get/user/id",
-              "operatioin": "user.id",
+              "operation": "user.id",
               "span_type": "web",
               "duration": 300,
               "children": [
                 {
                   "resource": "/get/user/school",
-                  "operatioin": "user.school",
+                  "operation": "user.school",
                   "span_type": "web",
                   "duration": 200,
                   "children": [
                     {
                       "resource": "/get/user/class",
-                      "operatioin": "user.class",
+                      "operation": "user.class",
                       "span_type": "web",
                       "duration": 200,
                       "children": [
                         {
                           "resource": "/get/user/number",
-                          "operatioin": "user.number",
+                          "operation": "user.number",
                           "span_type": "web",
                           "duration": 200,
                           "tags": [
@@ -48,7 +48,7 @@
                         },
                         {
                           "resource": "/get/user/score",
-                          "operatioin": "user.score",
+                          "operation": "user.score",
                           "span_type": "web",
                           "duration": 200,
                           "error": "access deny"
