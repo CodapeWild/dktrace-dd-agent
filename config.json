@@ -1,7 +1,7 @@
 {
   "dk_agent": "127.0.0.1:9529",
-  "threads": 10,
-  "send_count": 100,
+  "threads": 1,
+  "send_count": 10,
   "service": "dktrace-dd-agent",
   "trace": [
     {

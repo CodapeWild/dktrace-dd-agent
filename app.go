@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log"
 	"os"
+	"sync"
 	"time"
 
 	"gopkg.in/CodapeWild/dd-trace-go.v1/ddtrace"
@@ -74,7 +75,7 @@ func startRootSpan(trace []*span) (root ddtrace.Span, children []*span) {
 		}
 	} else {
 		root = tracer.StartSpan("start_root_span")
-		d = int64(time.Second)
+		d = int64(10 * time.Millisecond)
 		children = trace
 	}
 	time.Sleep(time.Duration(d))
@@ -83,21 +84,26 @@ func startRootSpan(trace []*span) (root ddtrace.Span, children []*span) {
 	return
 }
 
-func orchestrator(ctx context.Context, trace []*span) {
-	if len(trace) == 1 {
-		ctx = startSpanFromContext(ctx, trace[0])
-		if len(trace[0].Children) != 0 {
-			orchestrator(ctx, trace[0].Children)
+func orchestrator(ctx context.Context, children []*span) {
+	if len(children) == 1 {
+		ctx = startSpanFromContext(ctx, children[0])
+		if len(children[0].Children) != 0 {
+			orchestrator(ctx, children[0].Children)
 		}
 	} else {
-		for _, v := range trace {
+		wg := sync.WaitGroup{}
+		wg.Add(len(children))
+		for k := range children {
 			go func(ctx context.Context, span *span) {
+				defer wg.Done()
+
 				ctx = startSpanFromContext(ctx, span)
 				if len(span.Children) != 0 {
 					orchestrator(ctx, span.Children)
 				}
-			}(ctx, v)
+			}(ctx, children[k])
 		}
+		wg.Wait()
 	}
 }
 
