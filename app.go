@@ -51,12 +51,15 @@ func main() {
 	tracer.Start(tracer.WithAgentAddr(config.DkAgent), tracer.WithService(config.Service), tracer.WithDebugMode(true), tracer.WithLogStartup(true))
 	defer tracer.Stop()
 
-	root, children := startRootSpan(config.Trace)
+	var finish = make(chan struct{})
+	root, children := startRootSpan(config.Trace, finish)
 
 	orchestrator(tracer.ContextWithSpan(context.Background(), root), children)
+
+	<-finish
 }
 
-func startRootSpan(trace []*span) (root ddtrace.Span, children []*span) {
+func startRootSpan(trace []*span, finish chan struct{}) (root ddtrace.Span, children []*span) {
 	var (
 		d   int64
 		err error
@@ -68,7 +71,7 @@ func startRootSpan(trace []*span) (root ddtrace.Span, children []*span) {
 		for _, tag := range trace[0].Tags {
 			root.SetTag(tag.Key, tag.Value)
 		}
-		d = trace[0].Duration * time.Hour.Milliseconds()
+		d = trace[0].Duration * int64(time.Millisecond)
 		children = trace[0].Children
 		if len(trace[0].Error) != 0 {
 			err = errors.New(trace[0].Error)
@@ -78,8 +81,13 @@ func startRootSpan(trace []*span) (root ddtrace.Span, children []*span) {
 		d = int64(10 * time.Millisecond)
 		children = trace
 	}
-	time.Sleep(time.Duration(d))
-	root.Finish(tracer.WithError(err))
+
+	time.Sleep(time.Duration(d) / 2)
+	go func(root ddtrace.Span, d int64, err error) {
+		time.Sleep(time.Duration(d) / 2)
+		root.Finish(tracer.WithError(err))
+		close(finish)
+	}(root, d, err)
 
 	return
 }
@@ -121,7 +129,7 @@ func startSpanFromContext(ctx context.Context, span *span) context.Context {
 		err = errors.New(span.Error)
 	}
 
-	time.Sleep(time.Duration(span.Duration * time.Second.Milliseconds()))
+	time.Sleep(time.Duration(span.Duration * int64(time.Millisecond)))
 
 	ddspan.Finish(tracer.WithError(err))
 
