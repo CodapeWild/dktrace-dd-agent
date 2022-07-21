@@ -14,12 +14,19 @@ import (
 	"gopkg.in/CodapeWild/dd-trace-go.v1/ddtrace/tracer"
 )
 
+var cfg *config
+
+type sender struct {
+	Threads      int `json:"threads"`
+	SendCount    int `json:"send_count"`
+	SendInterval int `json:"send_interval"`
+}
+
 type config struct {
-	DkAgent   string  `json:"dk_agent"`
-	Threads   int     `json:"threads"`
-	SendCount int     `json:"send_count"`
-	Service   string  `json:"service"`
-	Trace     []*span `json:"trace"`
+	DkAgent string  `json:"dk_agent"`
+	Sender  *sender `json:"sender"`
+	Service string  `json:"service"`
+	Trace   []*span `json:"trace"`
 }
 
 type tag struct {
@@ -38,22 +45,15 @@ type span struct {
 }
 
 func main() {
-	data, err := os.ReadFile("./config.json")
-	if err != nil {
-		log.Fatalln(err.Error())
-	}
+	go startAgent()
 
-	config := &config{}
-	if err = json.Unmarshal(data, config); err != nil {
-		log.Fatalln(err.Error())
-	}
-
-	tracer.Start(tracer.WithAgentAddr(config.DkAgent), tracer.WithService(config.Service), tracer.WithDebugMode(true), tracer.WithLogStartup(true))
+	tracer.Start(tracer.WithAgentAddr(agentAddress), tracer.WithService(cfg.Service), tracer.WithDebugMode(true), tracer.WithLogStartup(true))
 	defer tracer.Stop()
 
-	root, children := startRootSpan(config.Trace)
-
+	root, children := startRootSpan(cfg.Trace)
 	orchestrator(tracer.ContextWithSpan(context.Background(), root), children)
+
+	<-globalCloser
 }
 
 func startRootSpan(trace []*span) (root ddtrace.Span, children []*span) {
@@ -68,7 +68,7 @@ func startRootSpan(trace []*span) (root ddtrace.Span, children []*span) {
 		for _, tag := range trace[0].Tags {
 			root.SetTag(tag.Key, tag.Value)
 		}
-		d = trace[0].Duration * time.Hour.Milliseconds()
+		d = trace[0].Duration * int64(time.Millisecond)
 		children = trace[0].Children
 		if len(trace[0].Error) != 0 {
 			err = errors.New(trace[0].Error)
@@ -78,8 +78,12 @@ func startRootSpan(trace []*span) (root ddtrace.Span, children []*span) {
 		d = int64(10 * time.Millisecond)
 		children = trace
 	}
-	time.Sleep(time.Duration(d))
-	root.Finish(tracer.WithError(err))
+
+	time.Sleep(time.Duration(d) / 2)
+	go func(root ddtrace.Span, d int64, err error) {
+		time.Sleep(time.Duration(d) / 2)
+		root.Finish(tracer.WithError(err))
+	}(root, d, err)
 
 	return
 }
@@ -121,7 +125,7 @@ func startSpanFromContext(ctx context.Context, span *span) context.Context {
 		err = errors.New(span.Error)
 	}
 
-	time.Sleep(time.Duration(span.Duration * time.Second.Milliseconds()))
+	time.Sleep(time.Duration(span.Duration * int64(time.Millisecond)))
 
 	ddspan.Finish(tracer.WithError(err))
 
@@ -131,4 +135,14 @@ func startSpanFromContext(ctx context.Context, span *span) context.Context {
 func init() {
 	log.SetOutput(os.Stdout)
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
+	data, err := os.ReadFile("./config.json")
+	if err != nil {
+		log.Fatalln(err.Error())
+	}
+
+	cfg = &config{}
+	if err = json.Unmarshal(data, cfg); err != nil {
+		log.Fatalln(err.Error())
+	}
 }
