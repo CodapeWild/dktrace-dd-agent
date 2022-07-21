@@ -14,12 +14,19 @@ import (
 	"gopkg.in/CodapeWild/dd-trace-go.v1/ddtrace/tracer"
 )
 
+var cfg *config
+
+type sender struct {
+	Threads      int `json:"threads"`
+	SendCount    int `json:"send_count"`
+	SendInterval int `json:"send_interval"`
+}
+
 type config struct {
-	DkAgent   string  `json:"dk_agent"`
-	Threads   int     `json:"threads"`
-	SendCount int     `json:"send_count"`
-	Service   string  `json:"service"`
-	Trace     []*span `json:"trace"`
+	DkAgent string  `json:"dk_agent"`
+	Sender  *sender `json:"sender"`
+	Service string  `json:"service"`
+	Trace   []*span `json:"trace"`
 }
 
 type tag struct {
@@ -38,28 +45,18 @@ type span struct {
 }
 
 func main() {
-	data, err := os.ReadFile("./config.json")
-	if err != nil {
-		log.Fatalln(err.Error())
-	}
+	go startAgent()
 
-	config := &config{}
-	if err = json.Unmarshal(data, config); err != nil {
-		log.Fatalln(err.Error())
-	}
-
-	tracer.Start(tracer.WithAgentAddr(config.DkAgent), tracer.WithService(config.Service), tracer.WithDebugMode(true), tracer.WithLogStartup(true))
+	tracer.Start(tracer.WithAgentAddr(agentAddress), tracer.WithService(cfg.Service), tracer.WithDebugMode(true), tracer.WithLogStartup(true))
 	defer tracer.Stop()
 
-	var finish = make(chan struct{})
-	root, children := startRootSpan(config.Trace, finish)
-
+	root, children := startRootSpan(cfg.Trace)
 	orchestrator(tracer.ContextWithSpan(context.Background(), root), children)
 
-	<-finish
+	<-globalCloser
 }
 
-func startRootSpan(trace []*span, finish chan struct{}) (root ddtrace.Span, children []*span) {
+func startRootSpan(trace []*span) (root ddtrace.Span, children []*span) {
 	var (
 		d   int64
 		err error
@@ -86,7 +83,6 @@ func startRootSpan(trace []*span, finish chan struct{}) (root ddtrace.Span, chil
 	go func(root ddtrace.Span, d int64, err error) {
 		time.Sleep(time.Duration(d) / 2)
 		root.Finish(tracer.WithError(err))
-		close(finish)
 	}(root, d, err)
 
 	return
@@ -139,4 +135,14 @@ func startSpanFromContext(ctx context.Context, span *span) context.Context {
 func init() {
 	log.SetOutput(os.Stdout)
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
+	data, err := os.ReadFile("./config.json")
+	if err != nil {
+		log.Fatalln(err.Error())
+	}
+
+	cfg = &config{}
+	if err = json.Unmarshal(data, cfg); err != nil {
+		log.Fatalln(err.Error())
+	}
 }
