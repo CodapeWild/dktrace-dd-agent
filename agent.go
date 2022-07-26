@@ -38,8 +38,6 @@ func startAgent() {
 }
 
 func sendDDTraceTask(sender *sender, buf []byte, urlstr string) {
-	defer close(globalCloser)
-
 	if sender.Threads <= 0 || sender.SendCount <= 0 {
 		return
 	}
@@ -69,4 +67,6 @@ func sendDDTraceTask(sender *sender, buf []byte, urlstr string) {
 		}(buf)
 	}
 	wg.Wait()
+
+	close(globalCloser)
 }
