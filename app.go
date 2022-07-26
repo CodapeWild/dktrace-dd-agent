@@ -54,6 +54,8 @@ func main() {
 	orchestrator(tracer.ContextWithSpan(context.Background(), root), children)
 
 	<-globalCloser
+
+	tracer.Flush()
 }
 
 func startRootSpan(trace []*span) (root ddtrace.Span, children []*span) {
