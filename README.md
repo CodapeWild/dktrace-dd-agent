@@ -40,8 +40,13 @@ The features include:
   "operation": "user.getUserName",
   "span_type": "",
   "duration": 1000,
-  "error": "",
-  "tags": [],
+  "error": "access deny, status code 100010",
+  "tags": [
+    {
+      "key": "_dd.origin",
+      "value": "rum"
+    }
+  ],
   "children": []
 }
 ```
