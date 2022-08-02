@@ -5,6 +5,7 @@
     "send_count": 10000
   },
   "service": "dktrace-dd-agent",
+  "dump_size": 4096,
   "trace": [
     {
       "resource": "/get/user/name",

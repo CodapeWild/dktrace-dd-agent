@@ -28,7 +28,7 @@ func handleDDTraceData(resp http.ResponseWriter, req *http.Request) {
 }
 
 func startAgent() {
-	log.Printf("### start ddtrace agent %s", agentAddress)
+	log.Printf("### start ddtrace agent %s\n", agentAddress)
 
 	http.HandleFunc(ddv4, handleDDTraceData)
 	if err := http.ListenAndServe(agentAddress, nil); err != nil {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"log"
@@ -12,7 +13,6 @@ import (
 	"time"
 
 	"gopkg.in/CodapeWild/dd-trace-go.v1/ddtrace"
-	"gopkg.in/CodapeWild/dd-trace-go.v1/ddtrace/ext"
 	"gopkg.in/CodapeWild/dd-trace-go.v1/ddtrace/tracer"
 )
 
@@ -28,10 +28,11 @@ type sender struct {
 }
 
 type config struct {
-	DkAgent string  `json:"dk_agent"`
-	Sender  *sender `json:"sender"`
-	Service string  `json:"service"`
-	Trace   []*span `json:"trace"`
+	DkAgent  string  `json:"dk_agent"`
+	Sender   *sender `json:"sender"`
+	Service  string  `json:"service"`
+	DumpSize int     `json:"dump_size"`
+	Trace    []*span `json:"trace"`
 }
 
 type tag struct {
@@ -55,12 +56,30 @@ func main() {
 	tracer.Start(tracer.WithAgentAddr(agentAddress), tracer.WithService(cfg.Service), tracer.WithDebugMode(true), tracer.WithLogStartup(true))
 	defer tracer.Stop()
 
+	var fillup int
+	if cfg.DumpSize > 0 {
+		fillup = cfg.DumpSize / countSpans(cfg.Trace, 0)
+		log.Printf("### fillup with dump data %dkb per span\n", fillup)
+		fillup *= 1000
+	}
+
 	root, children := startRootSpan(cfg.Trace)
-	orchestrator(tracer.ContextWithSpan(context.Background(), root), children)
+	orchestrator(tracer.ContextWithSpan(context.Background(), root), children, fillup)
 
 	<-globalCloser
 
 	tracer.Flush()
+}
+
+func countSpans(trace []*span, c int) int {
+	c += len(trace)
+	for i := range trace {
+		if len(trace[i].Children) != 0 {
+			c = countSpans(trace[i].Children, c)
+		}
+	}
+
+	return c
 }
 
 func startRootSpan(trace []*span) (root ddtrace.Span, children []*span) {
@@ -70,8 +89,8 @@ func startRootSpan(trace []*span) (root ddtrace.Span, children []*span) {
 	)
 	if len(trace) == 1 {
 		root = tracer.StartSpan(trace[0].Operation)
-		root.SetTag(ext.ResourceName, trace[0].Resource)
-		root.SetTag(ext.SpanType, trace[0].SpanType)
+		root.SetTag(ResourceName, trace[0].Resource)
+		root.SetTag(SpanType, trace[0].SpanType)
 		for _, tag := range trace[0].Tags {
 			root.SetTag(tag.Key, tag.Value)
 		}
@@ -95,11 +114,11 @@ func startRootSpan(trace []*span) (root ddtrace.Span, children []*span) {
 	return
 }
 
-func orchestrator(ctx context.Context, children []*span) {
+func orchestrator(ctx context.Context, children []*span, fillup int) {
 	if len(children) == 1 {
-		ctx = startSpanFromContext(ctx, children[0])
+		ctx = startSpanFromContext(ctx, children[0], fillup)
 		if len(children[0].Children) != 0 {
-			orchestrator(ctx, children[0].Children)
+			orchestrator(ctx, children[0].Children, fillup)
 		}
 	} else {
 		wg := sync.WaitGroup{}
@@ -108,9 +127,9 @@ func orchestrator(ctx context.Context, children []*span) {
 			go func(ctx context.Context, span *span) {
 				defer wg.Done()
 
-				ctx = startSpanFromContext(ctx, span)
+				ctx = startSpanFromContext(ctx, span, fillup)
 				if len(span.Children) != 0 {
-					orchestrator(ctx, span.Children)
+					orchestrator(ctx, span.Children, fillup)
 				}
 			}(ctx, children[k])
 		}
@@ -118,13 +137,24 @@ func orchestrator(ctx context.Context, children []*span) {
 	}
 }
 
-func startSpanFromContext(ctx context.Context, span *span) context.Context {
+func getRandomHexString(n int) string {
+	buf := make([]byte, n)
+	rand.Read(buf)
+
+	return hex.EncodeToString(buf)
+}
+
+func startSpanFromContext(ctx context.Context, span *span, fillup int) context.Context {
 	ddspan, ctx := tracer.StartSpanFromContext(ctx, span.Operation)
 
-	ddspan.SetTag(ext.ResourceName, span.Resource)
-	ddspan.SetTag(ext.SpanType, span.SpanType)
+	ddspan.SetTag(ResourceName, span.Resource)
+	ddspan.SetTag(SpanType, span.SpanType)
 	for _, tag := range span.Tags {
 		ddspan.SetTag(tag.Key, tag.Value)
+	}
+
+	if fillup != 0 {
+		ddspan.SetTag(DumpData, getRandomHexString(fillup))
 	}
 
 	var err error
