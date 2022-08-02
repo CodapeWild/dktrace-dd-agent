@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"math/rand"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 
@@ -14,7 +16,10 @@ import (
 	"gopkg.in/CodapeWild/dd-trace-go.v1/ddtrace/tracer"
 )
 
-var cfg *config
+var (
+	cfg          *config
+	agentAddress = "127.0.0.1:"
+)
 
 type sender struct {
 	Threads      int `json:"threads"`
@@ -147,4 +152,7 @@ func init() {
 	if err = json.Unmarshal(data, cfg); err != nil {
 		log.Fatalln(err.Error())
 	}
+
+	rand.Seed(time.Now().UnixNano())
+	agentAddress += strconv.Itoa(30000 + rand.Intn(10000))
 }
