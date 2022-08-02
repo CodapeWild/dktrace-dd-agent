@@ -10,7 +10,6 @@ import (
 
 var (
 	globalCloser = make(chan struct{})
-	agentAddress = "127.0.0.1:33669"
 	ddv4         = "/v0.4/traces"
 )
 
@@ -29,7 +28,7 @@ func handleDDTraceData(resp http.ResponseWriter, req *http.Request) {
 }
 
 func startAgent() {
-	log.Println("### start ddtrace agent")
+	log.Printf("### start ddtrace agent %s\n", agentAddress)
 
 	http.HandleFunc(ddv4, handleDDTraceData)
 	if err := http.ListenAndServe(agentAddress, nil); err != nil {
