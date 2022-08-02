@@ -1,10 +1,11 @@
 {
   "dk_agent": "127.0.0.1:9529",
   "sender": {
-    "threads": 1,
-    "send_count": 1
+    "threads": 100,
+    "send_count": 1000
   },
   "service": "dktrace-dd-agent",
+  "dump_size": 4096,
   "trace": [
     {
       "resource": "/get/user/name",
