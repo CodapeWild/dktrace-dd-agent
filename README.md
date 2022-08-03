@@ -20,7 +20,7 @@ The features include:
     "send_count": 1
   },
   "service": "dktrace-dd-agent",
-  "dump_size": 10240,
+  "dump_size": 4096,
   "trace": []
 }
 ```
