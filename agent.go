@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"sync"
+	"time"
 )
 
 var (
@@ -16,14 +17,21 @@ var (
 func startAgent() {
 	log.Printf("### start ddtrace agent %s\n", agentAddress)
 
-	http.HandleFunc(ddv4, handleDDTraceData)
-	if err := http.ListenAndServe(agentAddress, nil); err != nil {
+	svr := getTimeoutServer(agentAddress, http.HandlerFunc(handleDDTraceData))
+	if err := svr.ListenAndServe(); err != nil {
 		log.Fatalln(err.Error())
 	}
 }
 
-func getTimeoutServer() *http.Server {
-	return &http.Server{}
+func getTimeoutServer(address string, handler http.Handler) *http.Server {
+	return &http.Server{
+		Addr:              address,
+		Handler:           handler,
+		ReadHeaderTimeout: 10 * time.Millisecond,
+		ReadTimeout:       time.Second,
+		WriteTimeout:      3 * time.Second,
+		IdleTimeout:       10 * time.Second,
+	}
 }
 
 func handleDDTraceData(resp http.ResponseWriter, req *http.Request) {

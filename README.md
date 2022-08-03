@@ -20,7 +20,7 @@ The features include:
     "send_count": 1
   },
   "service": "dktrace-dd-agent",
-  "size": 10240,
+  "dump_size": 10240,
   "trace": []
 }
 ```
@@ -66,9 +66,10 @@ The features include:
 ## Standard DDTrace Tags
 
 ```golang
-// Package ext contains a set of Datadog-specific constants. Most of them are used
+// ext.go contains a set of Datadog-specific constants. Most of them are used
 // for setting span metadata.
-package ext
+
+package main
 
 const (
 	// TargetHost sets the target host address.
@@ -148,6 +149,9 @@ const (
 
 	// RuntimeID is a tag that contains a unique id for this process.
 	RuntimeID = "runtime-id"
+
+	// Dump data tag used to extend the trace size.
+	DumpData = "_dump_data"
 )
 ```
 
