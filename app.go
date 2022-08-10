@@ -28,11 +28,12 @@ type sender struct {
 }
 
 type config struct {
-	DkAgent  string  `json:"dk_agent"`
-	Sender   *sender `json:"sender"`
-	Service  string  `json:"service"`
-	DumpSize int     `json:"dump_size"`
-	Trace    []*span `json:"trace"`
+	DkAgent    string  `json:"dk_agent"`
+	Sender     *sender `json:"sender"`
+	Service    string  `json:"service"`
+	DumpSize   int     `json:"dump_size"`
+	RandomDump bool    `json:"random_dump"`
+	Trace      []*span `json:"trace"`
 }
 
 type tag struct {
@@ -48,6 +49,7 @@ type span struct {
 	Error     string  `json:"error"`
 	Tags      []tag   `json:"tags"`
 	Children  []*span `json:"children"`
+	dumpSize  int64
 }
 
 func main() {
@@ -56,15 +58,24 @@ func main() {
 	tracer.Start(tracer.WithAgentAddr(agentAddress), tracer.WithService(cfg.Service), tracer.WithDebugMode(true), tracer.WithLogStartup(true))
 	defer tracer.Stop()
 
-	var fillup int
+	spanCount := countSpans(cfg.Trace, 0)
+	log.Printf("### span count: %d\n", spanCount)
+	log.Printf("### random dump: %v", cfg.RandomDump)
+	if cfg.RandomDump {
+		log.Printf("### dump size: 0kb~%dkb", cfg.DumpSize)
+	} else {
+		log.Printf("### dump size: %dkb", cfg.DumpSize)
+	}
+
+	var fillup int64
 	if cfg.DumpSize > 0 {
-		fillup = cfg.DumpSize / countSpans(cfg.Trace, 0)
-		log.Printf("### fillup with dump data %dkb per span\n", fillup)
-		fillup *= 1000
+		fillup = int64(cfg.DumpSize / spanCount)
+		fillup <<= 10
+		setPerDumpSize(cfg.Trace, fillup, cfg.RandomDump)
 	}
 
 	root, children := startRootSpan(cfg.Trace)
-	orchestrator(tracer.ContextWithSpan(context.Background(), root), children, fillup)
+	orchestrator(tracer.ContextWithSpan(context.Background(), root), children)
 
 	<-globalCloser
 
@@ -80,6 +91,19 @@ func countSpans(trace []*span, c int) int {
 	}
 
 	return c
+}
+
+func setPerDumpSize(trace []*span, fillup int64, isRandom bool) {
+	for i := range trace {
+		if isRandom {
+			trace[i].dumpSize = rand.Int63n(fillup)
+		} else {
+			trace[i].dumpSize = fillup
+		}
+		if len(trace[i].Children) != 0 {
+			setPerDumpSize(trace[i].Children, fillup, isRandom)
+		}
+	}
 }
 
 func startRootSpan(trace []*span) (root ddtrace.Span, children []*span) {
@@ -114,11 +138,11 @@ func startRootSpan(trace []*span) (root ddtrace.Span, children []*span) {
 	return
 }
 
-func orchestrator(ctx context.Context, children []*span, fillup int) {
+func orchestrator(ctx context.Context, children []*span) {
 	if len(children) == 1 {
-		ctx = startSpanFromContext(ctx, children[0], fillup)
+		ctx = startSpanFromContext(ctx, children[0])
 		if len(children[0].Children) != 0 {
-			orchestrator(ctx, children[0].Children, fillup)
+			orchestrator(ctx, children[0].Children)
 		}
 	} else {
 		wg := sync.WaitGroup{}
@@ -127,9 +151,9 @@ func orchestrator(ctx context.Context, children []*span, fillup int) {
 			go func(ctx context.Context, span *span) {
 				defer wg.Done()
 
-				ctx = startSpanFromContext(ctx, span, fillup)
+				ctx = startSpanFromContext(ctx, span)
 				if len(span.Children) != 0 {
-					orchestrator(ctx, span.Children, fillup)
+					orchestrator(ctx, span.Children)
 				}
 			}(ctx, children[k])
 		}
@@ -137,14 +161,14 @@ func orchestrator(ctx context.Context, children []*span, fillup int) {
 	}
 }
 
-func getRandomHexString(n int) string {
+func getRandomHexString(n int64) string {
 	buf := make([]byte, n)
 	rand.Read(buf)
 
 	return hex.EncodeToString(buf)
 }
 
-func startSpanFromContext(ctx context.Context, span *span, fillup int) context.Context {
+func startSpanFromContext(ctx context.Context, span *span) context.Context {
 	ddspan, ctx := tracer.StartSpanFromContext(ctx, span.Operation)
 
 	ddspan.SetTag(ResourceName, span.Resource)
@@ -153,8 +177,8 @@ func startSpanFromContext(ctx context.Context, span *span, fillup int) context.C
 		ddspan.SetTag(tag.Key, tag.Value)
 	}
 
-	if fillup != 0 {
-		ddspan.SetTag(DumpData, getRandomHexString(fillup))
+	if span.dumpSize != 0 {
+		ddspan.SetTag(DumpData, getRandomHexString(span.dumpSize))
 	}
 
 	var err error

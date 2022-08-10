@@ -30,6 +30,7 @@ The features include:
 - `sender.send_count`: how many times `trace` will be send in one `thread`
 - `service`: service name
 - `dump_size`: the data size in kb used to fillup the trace, 0: no extra data
+- `random_dump`: whether to fillup the span with random size extra data
 - `trace`: represents a Trace consists of Spans
 
 ## Span Structure
