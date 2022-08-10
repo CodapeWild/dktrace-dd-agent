@@ -52,6 +52,8 @@ func handleDDTraceData(resp http.ResponseWriter, req *http.Request) {
 
 	if cfg.Sender.Threads > 0 && cfg.Sender.SendCount > 0 {
 		go sendDDTraceTask(cfg.Sender, buf, "http://"+cfg.DkAgent+ddv4, req.Header)
+	} else {
+		close(globalCloser)
 	}
 }
 
