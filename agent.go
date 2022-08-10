@@ -35,6 +35,11 @@ func getTimeoutServer(address string, handler http.Handler) *http.Server {
 }
 
 func handleDDTraceData(resp http.ResponseWriter, req *http.Request) {
+	log.Println("### DDTrace original headers:")
+	for k, v := range req.Header {
+		log.Printf("%s: %v\n", k, v)
+	}
+
 	resp.WriteHeader(http.StatusOK)
 
 	buf, err := io.ReadAll(req.Body)
@@ -45,14 +50,14 @@ func handleDDTraceData(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	go sendDDTraceTask(cfg.Sender, buf, "http://"+cfg.DkAgent+ddv4)
+	if cfg.Sender.Threads > 0 && cfg.Sender.SendCount > 0 {
+		go sendDDTraceTask(cfg.Sender, buf, "http://"+cfg.DkAgent+ddv4, req.Header)
+	} else {
+		close(globalCloser)
+	}
 }
 
-func sendDDTraceTask(sender *sender, buf []byte, urlstr string) {
-	if sender.Threads <= 0 || sender.SendCount <= 0 {
-		return
-	}
-
+func sendDDTraceTask(sender *sender, buf []byte, endpoint string, headers http.Header) {
 	wg := sync.WaitGroup{}
 	wg.Add(sender.Threads)
 	for i := 0; i < sender.Threads; i++ {
@@ -60,12 +65,12 @@ func sendDDTraceTask(sender *sender, buf []byte, urlstr string) {
 			defer wg.Done()
 
 			for j := 0; j < sender.SendCount; j++ {
-				req, err := http.NewRequest(http.MethodPut, urlstr, bytes.NewBuffer(buf))
+				req, err := http.NewRequest(http.MethodPut, endpoint, bytes.NewBuffer(buf))
 				if err != nil {
 					log.Println(err.Error())
 					continue
 				}
-				req.Header.Set("Content-Type", "application/msgpack")
+				req.Header = headers
 
 				resp, err := http.DefaultClient.Do(req)
 				if err != nil {
