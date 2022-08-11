@@ -125,7 +125,7 @@ func startRootSpan(trace []*span) (root ddtrace.Span, children []*span) {
 		}
 	} else {
 		root = tracer.StartSpan("start_root_span")
-		d = int64(10 * time.Millisecond)
+		d = int64(time.Duration(60+rand.Intn(300)) * time.Millisecond)
 		children = trace
 	}
 

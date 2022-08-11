@@ -15,7 +15,7 @@ var (
 )
 
 func startAgent() {
-	log.Printf("### start ddtrace agent %s\n", agentAddress)
+	log.Printf("### start DDTrace agent %s\n", agentAddress)
 
 	svr := getTimeoutServer(agentAddress, http.HandlerFunc(handleDDTraceData))
 	if err := svr.ListenAndServe(); err != nil {
@@ -42,19 +42,22 @@ func handleDDTraceData(resp http.ResponseWriter, req *http.Request) {
 
 	resp.WriteHeader(http.StatusOK)
 
+	if req.Header.Get("X-Datadog-Trace-Count") == "0" {
+		return
+	}
+
+	if cfg.Sender.Threads <= 0 || cfg.Sender.SendCount <= 0 {
+		close(globalCloser)
+
+		return
+	}
+
 	buf, err := io.ReadAll(req.Body)
 	if err != nil {
 		log.Fatalln(err.Error())
 	}
-	if len(buf) <= 1 {
-		return
-	}
 
-	if cfg.Sender.Threads > 0 && cfg.Sender.SendCount > 0 {
-		go sendDDTraceTask(cfg.Sender, buf, "http://"+cfg.DkAgent+ddv4, req.Header)
-	} else {
-		close(globalCloser)
-	}
+	go sendDDTraceTask(cfg.Sender, buf, "http://"+cfg.DkAgent+ddv4, req.Header)
 }
 
 func sendDDTraceTask(sender *sender, buf []byte, endpoint string, headers http.Header) {
