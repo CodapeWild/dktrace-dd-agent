@@ -169,7 +169,12 @@ func getRandomHexString(n int64) string {
 }
 
 func startSpanFromContext(ctx context.Context, span *span) context.Context {
+	var err error
+	if len(span.Error) != 0 {
+		err = errors.New(span.Error)
+	}
 	ddspan, ctx := tracer.StartSpanFromContext(ctx, span.Operation)
+	defer ddspan.Finish(tracer.WithError(err))
 
 	ddspan.SetTag(ResourceName, span.Resource)
 	ddspan.SetTag(SpanType, span.SpanType)
@@ -181,14 +186,7 @@ func startSpanFromContext(ctx context.Context, span *span) context.Context {
 		ddspan.SetTag(DumpData, getRandomHexString(span.dumpSize))
 	}
 
-	var err error
-	if len(span.Error) != 0 {
-		err = errors.New(span.Error)
-	}
-
 	time.Sleep(time.Duration(span.Duration * int64(time.Millisecond)))
-
-	ddspan.Finish(tracer.WithError(err))
 
 	return ctx
 }
