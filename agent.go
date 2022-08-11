@@ -15,7 +15,7 @@ var (
 )
 
 func startAgent() {
-	log.Printf("### start ddtrace agent %s\n", agentAddress)
+	log.Printf("### start DDTrace agent %s\n", agentAddress)
 
 	svr := getTimeoutServer(agentAddress, http.HandlerFunc(handleDDTraceData))
 	if err := svr.ListenAndServe(); err != nil {
