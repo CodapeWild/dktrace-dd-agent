@@ -68,7 +68,7 @@ func sendDDTraceTask(sender *sender, buf []byte, endpoint string, headers http.H
 			defer wg.Done()
 
 			for j := 0; j < sender.SendCount; j++ {
-				req, err := http.NewRequest(http.MethodPut, endpoint, bytes.NewBuffer(buf))
+				req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewReader(buf))
 				if err != nil {
 					log.Println(err.Error())
 					continue
@@ -80,8 +80,8 @@ func sendDDTraceTask(sender *sender, buf []byte, endpoint string, headers http.H
 					log.Println(err.Error())
 					continue
 				}
-				resp.Body.Close()
 				log.Println(resp.Status)
+				resp.Body.Close()
 			}
 		}(buf)
 	}

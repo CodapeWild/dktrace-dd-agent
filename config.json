@@ -6,7 +6,7 @@
   },
   "service": "dktrace-dd-agent",
   "dump_size": 1024,
-  "random_dump": false,
+  "random_dump": true,
   "trace": [
     {
       "resource": "/get/user/name",
