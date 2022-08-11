@@ -42,7 +42,7 @@ func handleDDTraceData(resp http.ResponseWriter, req *http.Request) {
 
 	resp.WriteHeader(http.StatusOK)
 
-	if values, ok := req.Header["X-Datadog-Trace-Count"]; ok && values[0] == "0" {
+	if req.Header.Get("X-Datadog-Trace-Count") == "0" {
 		return
 	}
 
