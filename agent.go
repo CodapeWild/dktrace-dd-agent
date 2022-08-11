@@ -42,19 +42,22 @@ func handleDDTraceData(resp http.ResponseWriter, req *http.Request) {
 
 	resp.WriteHeader(http.StatusOK)
 
+	if values, ok := req.Header["X-Datadog-Trace-Count"]; ok && values[0] == "0" {
+		return
+	}
+
+	if cfg.Sender.Threads <= 0 || cfg.Sender.SendCount <= 0 {
+		close(globalCloser)
+
+		return
+	}
+
 	buf, err := io.ReadAll(req.Body)
 	if err != nil {
 		log.Fatalln(err.Error())
 	}
-	if len(buf) <= 1 {
-		return
-	}
 
-	if cfg.Sender.Threads > 0 && cfg.Sender.SendCount > 0 {
-		go sendDDTraceTask(cfg.Sender, buf, "http://"+cfg.DkAgent+ddv4, req.Header)
-	} else {
-		close(globalCloser)
-	}
+	go sendDDTraceTask(cfg.Sender, buf, "http://"+cfg.DkAgent+ddv4, req.Header)
 }
 
 func sendDDTraceTask(sender *sender, buf []byte, endpoint string, headers http.Header) {
