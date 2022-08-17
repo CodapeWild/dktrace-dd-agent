@@ -9,11 +9,6 @@ import (
 	"time"
 )
 
-var (
-	globalCloser = make(chan struct{})
-	ddv4         = "/v0.4/traces"
-)
-
 func startAgent() {
 	log.Printf("### start DDTrace agent %s\n", agentAddress)
 
