@@ -21,7 +21,7 @@ The features include:
   },
   "service": "dktrace-dd-agent",
   "dump_size": 1024,
-  "random_dump": false,
+  "random_dump": true,
   "trace": []
 }
 ```
