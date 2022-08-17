@@ -6,7 +6,7 @@ This tool used to send standard DDTrace tracing data to Datakit.
 
 The features include:
 
-- build with standard DDTrace Golang lib
+- build with [standard DDTrace Golang lib](https://gopkg.in/CodapeWild/dd-trace-go.v1/ddtrace)
 - customized Span data
 - configurable multi-thread pressure test
 
@@ -21,7 +21,7 @@ The features include:
   },
   "service": "dktrace-dd-agent",
   "dump_size": 1024,
-  "random_dump": false,
+  "random_dump": true,
   "trace": []
 }
 ```
