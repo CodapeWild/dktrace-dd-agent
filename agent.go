@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/CodapeWild/dktrace-dd-agent/pb"
 )
 
 func startAgent() {
@@ -56,13 +58,24 @@ func handleDDTraceData(resp http.ResponseWriter, req *http.Request) {
 }
 
 func sendDDTraceTask(sender *sender, buf []byte, endpoint string, headers http.Header) {
+	ddtraces := pb.Traces{}
+	if _, err := ddtraces.UnmarshalMsg(buf); err != nil {
+		log.Fatalln(err.Error())
+	}
+
 	wg := sync.WaitGroup{}
 	wg.Add(sender.Threads)
 	for i := 0; i < sender.Threads; i++ {
-		go func(buf []byte) {
+		go func(ddtraces pb.Traces, ti int) {
 			defer wg.Done()
 
 			for j := 0; j < sender.SendCount; j++ {
+				modifyIDs(ddtraces, uint64(ti), uint64(j))
+				buf, err := ddtraces.MarshalMsg(nil)
+				if err != nil {
+					log.Fatalln(err.Error())
+				}
+
 				req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewReader(buf))
 				if err != nil {
 					log.Println(err.Error())
@@ -78,9 +91,29 @@ func sendDDTraceTask(sender *sender, buf []byte, endpoint string, headers http.H
 				log.Println(resp.Status)
 				resp.Body.Close()
 			}
-		}(buf)
+		}(ddtraces, i+1)
 	}
 	wg.Wait()
 
 	close(globalCloser)
+}
+
+func modifyIDs(ddtraces pb.Traces, ti, cj uint64) {
+	if len(ddtraces) == 0 {
+		return
+	}
+
+	for i := range ddtraces {
+		if len(ddtraces[i]) == 0 {
+			continue
+		}
+		var tid = ddtraces[i][0].TraceID*ti + cj
+		for j := range ddtraces[i] {
+			ddtraces[i][j].TraceID = tid
+			if ddtraces[i][j].ParentID != 0 {
+				ddtraces[i][j].ParentID = ddtraces[i][j].ParentID*ti + cj
+			}
+			ddtraces[i][j].SpanID = ddtraces[i][j].SpanID*ti + cj
+		}
+	}
 }
