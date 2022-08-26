@@ -100,11 +100,13 @@ func sendDDTraceTask(sender *sender, buf []byte, endpoint string, headers http.H
 
 func modifyIDs(ddtraces pb.Traces, ti, cj uint64) {
 	if len(ddtraces) == 0 {
+		log.Println("### empty ddtraces")
 		return
 	}
 
 	for i := range ddtraces {
 		if len(ddtraces[i]) == 0 {
+			log.Println("### empty ddtrace")
 			continue
 		}
 		var tid = ddtraces[i][0].TraceID*ti + cj
