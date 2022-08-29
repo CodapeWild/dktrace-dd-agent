@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CodapeWild/dktrace-dd-agent/pb"
+	"github.com/DataDog/datadog-agent/pkg/trace/pb"
 )
 
 func startAgent() {
@@ -109,6 +109,7 @@ func modifyIDs(ddtraces pb.Traces, ti, cj uint64) {
 			log.Println("### empty ddtrace")
 			continue
 		}
+
 		var tid = ddtraces[i][0].TraceID*ti + cj
 		for j := range ddtraces[i] {
 			ddtraces[i][j].TraceID = tid
