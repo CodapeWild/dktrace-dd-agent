@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"log"
+	"math/rand"
 	"net/http"
 	"sync"
 	"time"
@@ -63,6 +64,8 @@ func sendDDTraceTask(sender *sender, buf []byte, endpoint string, headers http.H
 		log.Fatalln(err.Error())
 	}
 
+	rand.Seed(time.Now().UnixNano())
+
 	wg := sync.WaitGroup{}
 	wg.Add(sender.Threads)
 	for i := 0; i < sender.Threads; i++ {
@@ -70,7 +73,7 @@ func sendDDTraceTask(sender *sender, buf []byte, endpoint string, headers http.H
 			defer wg.Done()
 
 			for j := 0; j < sender.SendCount; j++ {
-				modifyIDs(ddtraces, uint64(ti), uint64(j))
+				modifyIDs(ddtraces)
 				buf, err := ddtraces.MarshalMsg(nil)
 				if err != nil {
 					log.Fatalln(err.Error())
@@ -98,25 +101,28 @@ func sendDDTraceTask(sender *sender, buf []byte, endpoint string, headers http.H
 	close(globalCloser)
 }
 
-func modifyIDs(ddtraces pb.Traces, ti, cj uint64) {
-	if len(ddtraces) == 0 {
+func modifyIDs(ddtraces pb.Traces) {
+	if len(ddtraces) == 0 || len(ddtraces[0]) == 0 {
 		log.Println("### empty ddtraces")
 		return
 	}
 
+	var (
+		tid = ddtraces[0][0].TraceID * knuthFactor
+		r   = uint64(rand.Intn(50) + 50)
+	)
 	for i := range ddtraces {
 		if len(ddtraces[i]) == 0 {
 			log.Println("### empty ddtrace")
 			continue
 		}
 
-		var tid = ddtraces[i][0].TraceID*ti + cj
 		for j := range ddtraces[i] {
 			ddtraces[i][j].TraceID = tid
 			if ddtraces[i][j].ParentID != 0 {
-				ddtraces[i][j].ParentID = ddtraces[i][j].ParentID*ti + cj
+				ddtraces[i][j].ParentID = (ddtraces[i][j].ParentID >> 2) * r
 			}
-			ddtraces[i][j].SpanID = ddtraces[i][j].SpanID*ti + cj
+			ddtraces[i][j].SpanID = (ddtraces[i][j].SpanID >> 2) * r
 		}
 	}
 }

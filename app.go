@@ -21,6 +21,7 @@ var (
 	globalCloser = make(chan struct{})
 	agentAddress = "127.0.0.1:"
 	ddv4         = "/v0.4/traces"
+	knuthFactor  = uint64(1111111111111111111)
 )
 
 type sender struct {
@@ -70,7 +71,7 @@ func main() {
 	}
 
 	var fillup int64
-	if cfg.DumpSize > 0 {
+	if cfg.RandomDump && cfg.DumpSize > 0 {
 		fillup = int64(cfg.DumpSize / spanCount)
 		fillup <<= 10
 		setPerDumpSize(cfg.Trace, fillup, cfg.RandomDump)
