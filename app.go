@@ -12,16 +12,17 @@ import (
 	"sync"
 	"time"
 
+	"github.com/CodapeWild/devtools/idflaker"
 	"gopkg.in/CodapeWild/dd-trace-go.v1/ddtrace"
 	"gopkg.in/CodapeWild/dd-trace-go.v1/ddtrace/tracer"
 )
 
 var (
 	cfg          *config
+	idflk        *idflaker.IDFlaker
 	globalCloser = make(chan struct{})
 	agentAddress = "127.0.0.1:"
 	ddv4         = "/v0.4/traces"
-	knuthFactor  = uint64(1111111111111111111)
 )
 
 type sender struct {
@@ -205,6 +206,10 @@ func init() {
 
 	cfg = &config{}
 	if err = json.Unmarshal(data, cfg); err != nil {
+		log.Fatalln(err.Error())
+	}
+
+	if idflk, err = idflaker.NewIdFlaker(66); err != nil {
 		log.Fatalln(err.Error())
 	}
 

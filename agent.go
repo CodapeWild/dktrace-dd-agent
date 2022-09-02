@@ -69,6 +69,8 @@ func sendDDTraceTask(sender *sender, buf []byte, endpoint string, headers http.H
 	wg := sync.WaitGroup{}
 	wg.Add(sender.Threads)
 	for i := 0; i < sender.Threads; i++ {
+		dupi := duplicate(ddtraces)
+
 		go func(ddtraces pb.Traces, ti int) {
 			defer wg.Done()
 
@@ -94,23 +96,46 @@ func sendDDTraceTask(sender *sender, buf []byte, endpoint string, headers http.H
 				log.Println(resp.Status)
 				resp.Body.Close()
 			}
-		}(ddtraces, i+1)
+		}(dupi, i+1)
 	}
 	wg.Wait()
 
 	close(globalCloser)
 }
 
+func duplicate(ddtraces pb.Traces) pb.Traces {
+	dupi := make(pb.Traces, len(ddtraces))
+	for i := range ddtraces {
+		dupi[i] = make(pb.Trace, len(ddtraces[i]))
+		for j := range ddtraces[i] {
+			dupi[i][j] = &pb.Span{
+				Service:    ddtraces[i][j].Service,
+				Name:       ddtraces[i][j].Name,
+				Resource:   ddtraces[i][j].Resource,
+				TraceID:    ddtraces[i][j].TraceID,
+				SpanID:     ddtraces[i][j].SpanID,
+				ParentID:   ddtraces[i][j].ParentID,
+				Start:      ddtraces[i][j].Start,
+				Duration:   ddtraces[i][j].Duration,
+				Error:      ddtraces[i][j].Error,
+				Meta:       ddtraces[i][j].Meta,
+				Metrics:    ddtraces[i][j].Metrics,
+				Type:       ddtraces[i][j].Type,
+				MetaStruct: ddtraces[i][j].MetaStruct,
+			}
+		}
+	}
+
+	return dupi
+}
+
 func modifyIDs(ddtraces pb.Traces) {
-	if len(ddtraces) == 0 || len(ddtraces[0]) == 0 {
+	if len(ddtraces) == 0 {
 		log.Println("### empty ddtraces")
 		return
 	}
 
-	var (
-		tid = ddtraces[0][0].TraceID * knuthFactor
-		r   = uint64(rand.Intn(50) + 50)
-	)
+	var tid = uint64(idflk.NextInt64Id())
 	for i := range ddtraces {
 		if len(ddtraces[i]) == 0 {
 			log.Println("### empty ddtrace")
@@ -119,10 +144,6 @@ func modifyIDs(ddtraces pb.Traces) {
 
 		for j := range ddtraces[i] {
 			ddtraces[i][j].TraceID = tid
-			if ddtraces[i][j].ParentID != 0 {
-				ddtraces[i][j].ParentID = (ddtraces[i][j].ParentID >> 2) * r
-			}
-			ddtraces[i][j].SpanID = (ddtraces[i][j].SpanID >> 2) * r
 		}
 	}
 }
