@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"log"
+	"math/rand"
 	"net/http"
 	"sync"
 	"time"
@@ -63,14 +64,18 @@ func sendDDTraceTask(sender *sender, buf []byte, endpoint string, headers http.H
 		log.Fatalln(err.Error())
 	}
 
+	rand.Seed(time.Now().UnixNano())
+
 	wg := sync.WaitGroup{}
 	wg.Add(sender.Threads)
 	for i := 0; i < sender.Threads; i++ {
+		dupi := duplicate(ddtraces)
+
 		go func(ddtraces pb.Traces, ti int) {
 			defer wg.Done()
 
 			for j := 0; j < sender.SendCount; j++ {
-				modifyIDs(ddtraces, uint64(ti), uint64(j))
+				modifyIDs(ddtraces)
 				buf, err := ddtraces.MarshalMsg(nil)
 				if err != nil {
 					log.Fatalln(err.Error())
@@ -91,32 +96,54 @@ func sendDDTraceTask(sender *sender, buf []byte, endpoint string, headers http.H
 				log.Println(resp.Status)
 				resp.Body.Close()
 			}
-		}(ddtraces, i+1)
+		}(dupi, i+1)
 	}
 	wg.Wait()
 
 	close(globalCloser)
 }
 
-func modifyIDs(ddtraces pb.Traces, ti, cj uint64) {
+func duplicate(ddtraces pb.Traces) pb.Traces {
+	dupi := make(pb.Traces, len(ddtraces))
+	for i := range ddtraces {
+		dupi[i] = make(pb.Trace, len(ddtraces[i]))
+		for j := range ddtraces[i] {
+			dupi[i][j] = &pb.Span{
+				Service:    ddtraces[i][j].Service,
+				Name:       ddtraces[i][j].Name,
+				Resource:   ddtraces[i][j].Resource,
+				TraceID:    ddtraces[i][j].TraceID,
+				SpanID:     ddtraces[i][j].SpanID,
+				ParentID:   ddtraces[i][j].ParentID,
+				Start:      ddtraces[i][j].Start,
+				Duration:   ddtraces[i][j].Duration,
+				Error:      ddtraces[i][j].Error,
+				Meta:       ddtraces[i][j].Meta,
+				Metrics:    ddtraces[i][j].Metrics,
+				Type:       ddtraces[i][j].Type,
+				MetaStruct: ddtraces[i][j].MetaStruct,
+			}
+		}
+	}
+
+	return dupi
+}
+
+func modifyIDs(ddtraces pb.Traces) {
 	if len(ddtraces) == 0 {
 		log.Println("### empty ddtraces")
 		return
 	}
 
+	var tid = uint64(idflk.NextInt64Id())
 	for i := range ddtraces {
 		if len(ddtraces[i]) == 0 {
 			log.Println("### empty ddtrace")
 			continue
 		}
 
-		var tid = ddtraces[i][0].TraceID*ti + cj
 		for j := range ddtraces[i] {
 			ddtraces[i][j].TraceID = tid
-			if ddtraces[i][j].ParentID != 0 {
-				ddtraces[i][j].ParentID = ddtraces[i][j].ParentID*ti + cj
-			}
-			ddtraces[i][j].SpanID = ddtraces[i][j].SpanID*ti + cj
 		}
 	}
 }
