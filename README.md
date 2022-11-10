@@ -4,7 +4,7 @@
 
 This tool uses standard DataDog APM golang-lib to simulate APM data and send to Datakit agent for correctness and pressure test purposes.
 
-- build with [standard DDTrace Golang lib](https://gopkg.in/CodapeWild/dd-trace-go.v1/ddtrace)
+- build with [standard DataDog trace Golang lib](https://gopkg.in/DataDog/dd-trace-go.v1/ddtrace)
 - configurable span data
 - configurable multi-thread pressure test
 - DataDog APM V0.4 and msgp serializer supported only(for now)

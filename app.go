@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"github.com/CodapeWild/devtools/idflaker"
-	"gopkg.in/CodapeWild/dd-trace-go.v1/ddtrace"
-	"gopkg.in/CodapeWild/dd-trace-go.v1/ddtrace/tracer"
+	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace"
+	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 )
 
 var (

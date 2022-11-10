@@ -54,6 +54,11 @@ func handleDDTraceData(resp http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		log.Fatalln(err.Error())
 	}
+	if len(buf) == 0 {
+		log.Println("empty traces")
+
+		return
+	}
 
 	go sendDDTraceTask(cfg.Sender, buf, "http://"+cfg.DkAgent+ddv4, req.Header)
 }
