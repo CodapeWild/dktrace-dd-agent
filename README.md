@@ -1,15 +1,13 @@
-# DDTrace Agent for Datakit
+# DataDog APM Tracing Data Simulator For [Datakit](https://github.com/GuanceCloud/datakit)
 
 **Notice:** THIS PROJECT IS STILL IN PROGRESS
 
-This tool used to send standard DDTrace tracing data to Datakit.
-
-The features include:
+This tool uses standard DataDog APM golang-lib to simulate APM data and send to Datakit agent for correctness and pressure test purposes.
 
 - build with [standard DDTrace Golang lib](https://gopkg.in/CodapeWild/dd-trace-go.v1/ddtrace)
-- customized Span data
+- configurable span data
 - configurable multi-thread pressure test
-- only DDTrace V0.4 edition and msgp serializer supported
+- DataDog APM V0.4 and msgp serializer supported only(for now)
 
 ## Config
 
