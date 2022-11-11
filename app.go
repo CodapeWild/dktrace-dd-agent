@@ -57,14 +57,8 @@ type span struct {
 }
 
 func (sp *span) startSpanFromContext(ctx context.Context) (ddtrace.Span, context.Context) {
-	var err error
-	if len(sp.Error) != 0 {
-		err = errors.New(sp.Error)
-	}
-
 	var ddspan ddtrace.Span
 	ddspan, ctx = tracer.StartSpanFromContext(ctx, sp.Operation)
-	defer ddspan.Finish(tracer.WithError(err))
 
 	ddspan.SetTag(ResourceName, sp.Resource)
 	ddspan.SetTag(SpanType, sp.SpanType)
@@ -79,7 +73,17 @@ func (sp *span) startSpanFromContext(ctx context.Context) (ddtrace.Span, context
 		ddspan.SetTag(DumpData, hex.EncodeToString(buf))
 	}
 
-	time.Sleep(sp.Duration * time.Millisecond)
+	total := int64(sp.Duration * time.Millisecond)
+	d := rand.Int63n(total)
+	time.Sleep(time.Duration(d))
+	go func() {
+		time.Sleep(time.Duration(total - d))
+		if len(sp.Error) != 0 {
+			ddspan.Finish(tracer.WithError(errors.New(sp.Error)))
+		} else {
+			ddspan.Finish()
+		}
+	}()
 
 	return ddspan, ctx
 }
@@ -139,34 +143,33 @@ func setPerDumpSize(trace []*span, fillup int64, isRandom bool) {
 }
 
 func startRootSpan(trace []*span) (root ddtrace.Span, children []*span) {
-	var (
-		d   time.Duration
-		err error
-	)
+	var sp *span
 	if len(trace) == 1 {
-		root = tracer.StartSpan(trace[0].Operation)
-		root.SetTag(ResourceName, trace[0].Resource)
-		root.SetTag(SpanType, trace[0].SpanType)
-		for _, tag := range trace[0].Tags {
-			root.SetTag(tag.Key, tag.Value)
-		}
-		d = trace[0].Duration * time.Millisecond
+		sp = trace[0]
+		// root = tracer.StartSpan(trace[0].Operation)
+		// root.SetTag(ResourceName, trace[0].Resource)
+		// root.SetTag(SpanType, trace[0].SpanType)
+		// for _, tag := range trace[0].Tags {
+		// 	root.SetTag(tag.Key, tag.Value)
+		// }
+		// d = trace[0].Duration * time.Millisecond
 		children = trace[0].Children
-		if len(trace[0].Error) != 0 {
-			err = errors.New(trace[0].Error)
-		}
+		// if len(trace[0].Error) != 0 {
+		// 	err = errors.New(trace[0].Error)
+		// }
 	} else {
-		root = tracer.StartSpan("startRootSpan")
-		root.SetTag(SpanType, "web")
-		d = time.Duration(60+rand.Intn(300)) * time.Millisecond
+		sp = &span{
+			Operation: "startRootSpan",
+			SpanType:  "web",
+			Duration:  time.Duration(60 + rand.Intn(300)),
+		}
+		// root = tracer.StartSpan("startRootSpan")
+		// root.SetTag(SpanType, "web")
+		// d = time.Duration(60+rand.Intn(300)) * time.Millisecond
 		children = trace
 	}
 
-	time.Sleep(d / 2)
-	go func(root ddtrace.Span, d time.Duration, err error) {
-		time.Sleep(d / 2)
-		root.Finish(tracer.WithError(err))
-	}(root, d, err)
+	root, _ = sp.startSpanFromContext(context.Background())
 
 	return
 }
