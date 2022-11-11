@@ -146,29 +146,15 @@ func startRootSpan(trace []*span) (root ddtrace.Span, children []*span) {
 	var sp *span
 	if len(trace) == 1 {
 		sp = trace[0]
-		// root = tracer.StartSpan(trace[0].Operation)
-		// root.SetTag(ResourceName, trace[0].Resource)
-		// root.SetTag(SpanType, trace[0].SpanType)
-		// for _, tag := range trace[0].Tags {
-		// 	root.SetTag(tag.Key, tag.Value)
-		// }
-		// d = trace[0].Duration * time.Millisecond
 		children = trace[0].Children
-		// if len(trace[0].Error) != 0 {
-		// 	err = errors.New(trace[0].Error)
-		// }
 	} else {
 		sp = &span{
 			Operation: "startRootSpan",
 			SpanType:  "web",
 			Duration:  time.Duration(60 + rand.Intn(300)),
 		}
-		// root = tracer.StartSpan("startRootSpan")
-		// root.SetTag(SpanType, "web")
-		// d = time.Duration(60+rand.Intn(300)) * time.Millisecond
 		children = trace
 	}
-
 	root, _ = sp.startSpanFromContext(context.Background())
 
 	return
