@@ -46,14 +46,46 @@ type tag struct {
 }
 
 type span struct {
-	Resource  string  `json:"resource"`
-	Operation string  `json:"operation"`
-	SpanType  string  `json:"span_type"`
-	Duration  int64   `json:"duration"`
-	Error     string  `json:"error"`
-	Tags      []tag   `json:"tags"`
-	Children  []*span `json:"children"`
+	Resource  string        `json:"resource"`
+	Operation string        `json:"operation"`
+	SpanType  string        `json:"span_type"`
+	Duration  time.Duration `json:"duration"`
+	Error     string        `json:"error"`
+	Tags      []tag         `json:"tags"`
+	Children  []*span       `json:"children"`
 	dumpSize  int64
+}
+
+func (sp *span) startSpanFromContext(ctx context.Context) (ddtrace.Span, context.Context) {
+	var ddspan ddtrace.Span
+	ddspan, ctx = tracer.StartSpanFromContext(ctx, sp.Operation)
+
+	ddspan.SetTag(ResourceName, sp.Resource)
+	ddspan.SetTag(SpanType, sp.SpanType)
+	for _, tag := range sp.Tags {
+		ddspan.SetTag(tag.Key, tag.Value)
+	}
+
+	if sp.dumpSize != 0 {
+		buf := make([]byte, sp.dumpSize)
+		rand.Read(buf)
+
+		ddspan.SetTag(DumpData, hex.EncodeToString(buf))
+	}
+
+	total := int64(sp.Duration * time.Millisecond)
+	d := rand.Int63n(total)
+	time.Sleep(time.Duration(d))
+	go func() {
+		time.Sleep(time.Duration(total - d))
+		if len(sp.Error) != 0 {
+			ddspan.Finish(tracer.WithError(errors.New(sp.Error)))
+		} else {
+			ddspan.Finish()
+		}
+	}()
+
+	return ddspan, ctx
 }
 
 func main() {
@@ -111,40 +143,26 @@ func setPerDumpSize(trace []*span, fillup int64, isRandom bool) {
 }
 
 func startRootSpan(trace []*span) (root ddtrace.Span, children []*span) {
-	var (
-		d   int64
-		err error
-	)
+	var sp *span
 	if len(trace) == 1 {
-		root = tracer.StartSpan(trace[0].Operation)
-		root.SetTag(ResourceName, trace[0].Resource)
-		root.SetTag(SpanType, trace[0].SpanType)
-		for _, tag := range trace[0].Tags {
-			root.SetTag(tag.Key, tag.Value)
-		}
-		d = trace[0].Duration * int64(time.Millisecond)
+		sp = trace[0]
 		children = trace[0].Children
-		if len(trace[0].Error) != 0 {
-			err = errors.New(trace[0].Error)
-		}
 	} else {
-		root = tracer.StartSpan("start_root_span")
-		d = int64(time.Duration(60+rand.Intn(300)) * time.Millisecond)
+		sp = &span{
+			Operation: "startRootSpan",
+			SpanType:  "web",
+			Duration:  time.Duration(60 + rand.Intn(300)),
+		}
 		children = trace
 	}
-
-	time.Sleep(time.Duration(d) / 2)
-	go func(root ddtrace.Span, d int64, err error) {
-		time.Sleep(time.Duration(d) / 2)
-		root.Finish(tracer.WithError(err))
-	}(root, d, err)
+	root, _ = sp.startSpanFromContext(context.Background())
 
 	return
 }
 
 func orchestrator(ctx context.Context, children []*span) {
 	if len(children) == 1 {
-		ctx = startSpanFromContext(ctx, children[0])
+		_, ctx = children[0].startSpanFromContext(ctx)
 		if len(children[0].Children) != 0 {
 			orchestrator(ctx, children[0].Children)
 		}
@@ -155,7 +173,7 @@ func orchestrator(ctx context.Context, children []*span) {
 			go func(ctx context.Context, span *span) {
 				defer wg.Done()
 
-				ctx = startSpanFromContext(ctx, span)
+				_, ctx = span.startSpanFromContext(ctx)
 				if len(span.Children) != 0 {
 					orchestrator(ctx, span.Children)
 				}
@@ -163,36 +181,6 @@ func orchestrator(ctx context.Context, children []*span) {
 		}
 		wg.Wait()
 	}
-}
-
-func getRandomHexString(n int64) string {
-	buf := make([]byte, n)
-	rand.Read(buf)
-
-	return hex.EncodeToString(buf)
-}
-
-func startSpanFromContext(ctx context.Context, span *span) context.Context {
-	var err error
-	if len(span.Error) != 0 {
-		err = errors.New(span.Error)
-	}
-	ddspan, ctx := tracer.StartSpanFromContext(ctx, span.Operation)
-	defer ddspan.Finish(tracer.WithError(err))
-
-	ddspan.SetTag(ResourceName, span.Resource)
-	ddspan.SetTag(SpanType, span.SpanType)
-	for _, tag := range span.Tags {
-		ddspan.SetTag(tag.Key, tag.Value)
-	}
-
-	if span.dumpSize != 0 {
-		ddspan.SetTag(DumpData, getRandomHexString(span.dumpSize))
-	}
-
-	time.Sleep(time.Duration(span.Duration * int64(time.Millisecond)))
-
-	return ctx
 }
 
 func init() {
@@ -207,6 +195,9 @@ func init() {
 	cfg = &config{}
 	if err = json.Unmarshal(data, cfg); err != nil {
 		log.Fatalln(err.Error())
+	}
+	if len(cfg.Trace) == 0 {
+		log.Fatalln("empty trace")
 	}
 
 	if idflk, err = idflaker.NewIdFlaker(66); err != nil {
