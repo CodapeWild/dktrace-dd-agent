@@ -112,10 +112,9 @@ func main() {
 
 	root, children := startRootSpan(cfg.Trace)
 	orchestrator(tracer.ContextWithSpan(context.Background(), root), children)
+	tracer.Flush()
 
 	<-globalCloser
-
-	tracer.Flush()
 }
 
 func countSpans(trace []*span, c int) int {
