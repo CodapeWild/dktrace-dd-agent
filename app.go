@@ -9,7 +9,6 @@ import (
 	"math/rand"
 	"os"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/CodapeWild/devtools/idflaker"
@@ -112,6 +111,7 @@ func main() {
 
 	root, children := startRootSpan(cfg.Trace)
 	orchestrator(tracer.ContextWithSpan(context.Background(), root), children)
+	time.Sleep(3 * time.Second)
 	tracer.Flush()
 
 	<-globalCloser
@@ -166,19 +166,14 @@ func orchestrator(ctx context.Context, children []*span) {
 			orchestrator(ctx, children[0].Children)
 		}
 	} else {
-		wg := sync.WaitGroup{}
-		wg.Add(len(children))
 		for k := range children {
 			go func(ctx context.Context, span *span) {
-				defer wg.Done()
-
 				_, ctx = span.startSpanFromContext(ctx)
 				if len(span.Children) != 0 {
 					orchestrator(ctx, span.Children)
 				}
 			}(ctx, children[k])
 		}
-		wg.Wait()
 	}
 }
 
