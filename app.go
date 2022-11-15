@@ -21,7 +21,7 @@ var (
 	idflk        *idflaker.IDFlaker
 	globalCloser = make(chan struct{})
 	agentAddress = "127.0.0.1:"
-	ddv4         = "/v0.4/traces"
+	path         = "/v0.4/traces"
 )
 
 type sender struct {

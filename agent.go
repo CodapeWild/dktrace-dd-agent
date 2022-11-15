@@ -13,7 +13,7 @@ import (
 )
 
 func startAgent() {
-	log.Printf("### start DDTrace agent %s\n", agentAddress)
+	log.Printf("### start DataDog APM agent %s\n", agentAddress)
 
 	svr := getTimeoutServer(agentAddress, http.HandlerFunc(handleDDTraceData))
 	if err := svr.ListenAndServe(); err != nil {
@@ -33,7 +33,7 @@ func getTimeoutServer(address string, handler http.Handler) *http.Server {
 }
 
 func handleDDTraceData(resp http.ResponseWriter, req *http.Request) {
-	log.Println("### DDTrace original headers:")
+	log.Println("### DataDog APM original headers:")
 	for k, v := range req.Header {
 		log.Printf("%s: %v\n", k, v)
 	}
@@ -60,7 +60,7 @@ func handleDDTraceData(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	go sendDDTraceTask(cfg.Sender, buf, "http://"+cfg.DkAgent+ddv4, req.Header)
+	go sendDDTraceTask(cfg.Sender, buf, "http://"+cfg.DkAgent+path, req.Header)
 }
 
 func sendDDTraceTask(sender *sender, buf []byte, endpoint string, headers http.Header) {
@@ -74,13 +74,13 @@ func sendDDTraceTask(sender *sender, buf []byte, endpoint string, headers http.H
 	wg := sync.WaitGroup{}
 	wg.Add(sender.Threads)
 	for i := 0; i < sender.Threads; i++ {
-		dupi := duplicate(ddtraces)
+		dupi := shallowCopyDDTrace(ddtraces)
 
 		go func(ddtraces pb.Traces, ti int) {
 			defer wg.Done()
 
 			for j := 0; j < sender.SendCount; j++ {
-				modifyIDs(ddtraces)
+				modifyTraceID(ddtraces)
 				buf, err := ddtraces.MarshalMsg(nil)
 				if err != nil {
 					log.Fatalln(err.Error())
@@ -108,47 +108,47 @@ func sendDDTraceTask(sender *sender, buf []byte, endpoint string, headers http.H
 	close(globalCloser)
 }
 
-func duplicate(ddtraces pb.Traces) pb.Traces {
-	dupi := make(pb.Traces, len(ddtraces))
-	for i := range ddtraces {
-		dupi[i] = make(pb.Trace, len(ddtraces[i]))
-		for j := range ddtraces[i] {
-			dupi[i][j] = &pb.Span{
-				Service:    ddtraces[i][j].Service,
-				Name:       ddtraces[i][j].Name,
-				Resource:   ddtraces[i][j].Resource,
-				TraceID:    ddtraces[i][j].TraceID,
-				SpanID:     ddtraces[i][j].SpanID,
-				ParentID:   ddtraces[i][j].ParentID,
-				Start:      ddtraces[i][j].Start,
-				Duration:   ddtraces[i][j].Duration,
-				Error:      ddtraces[i][j].Error,
-				Meta:       ddtraces[i][j].Meta,
-				Metrics:    ddtraces[i][j].Metrics,
-				Type:       ddtraces[i][j].Type,
-				MetaStruct: ddtraces[i][j].MetaStruct,
+func shallowCopyDDTrace(src pb.Traces) pb.Traces {
+	dest := make(pb.Traces, len(src))
+	for i := range src {
+		dest[i] = make(pb.Trace, len(src[i]))
+		for j := range src[i] {
+			dest[i][j] = &pb.Span{
+				Service:    src[i][j].Service,
+				Name:       src[i][j].Name,
+				Resource:   src[i][j].Resource,
+				TraceID:    src[i][j].TraceID,
+				SpanID:     src[i][j].SpanID,
+				ParentID:   src[i][j].ParentID,
+				Start:      src[i][j].Start,
+				Duration:   src[i][j].Duration,
+				Error:      src[i][j].Error,
+				Meta:       src[i][j].Meta,
+				Metrics:    src[i][j].Metrics,
+				Type:       src[i][j].Type,
+				MetaStruct: src[i][j].MetaStruct,
 			}
 		}
 	}
 
-	return dupi
+	return dest
 }
 
-func modifyIDs(ddtraces pb.Traces) {
-	if len(ddtraces) == 0 {
+func modifyTraceID(src pb.Traces) {
+	if len(src) == 0 {
 		log.Println("### empty ddtraces")
 		return
 	}
 
 	var tid = uint64(idflk.NextInt64Id())
-	for i := range ddtraces {
-		if len(ddtraces[i]) == 0 {
+	for i := range src {
+		if len(src[i]) == 0 {
 			log.Println("### empty ddtrace")
 			continue
 		}
 
-		for j := range ddtraces[i] {
-			ddtraces[i][j].TraceID = tid
+		for j := range src[i] {
+			src[i][j].TraceID = tid
 		}
 	}
 }
