@@ -67,7 +67,7 @@ func sendDDTraceTask(sender *sender, buf []byte, endpoint string, headers http.H
 	for i := 0; i < sender.Threads; i++ {
 		dupi := shallowCopyDDTrace(ddtraces)
 
-		go func(ddtraces pb.Traces, ti int) {
+		go func(ddtraces pb.Traces) {
 			defer wg.Done()
 
 			for j := 0; j < sender.SendCount; j++ {
@@ -92,7 +92,7 @@ func sendDDTraceTask(sender *sender, buf []byte, endpoint string, headers http.H
 				log.Println(resp.Status)
 				resp.Body.Close()
 			}
-		}(dupi, i+1)
+		}(dupi)
 	}
 	wg.Wait()
 
