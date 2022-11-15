@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"io"
 	"log"
-	"math/rand"
 	"net/http"
 	"sync"
 	"time"
@@ -44,12 +43,6 @@ func handleDDTraceData(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if cfg.Sender.Threads <= 0 || cfg.Sender.SendCount <= 0 {
-		close(globalCloser)
-
-		return
-	}
-
 	buf, err := io.ReadAll(req.Body)
 	if err != nil {
 		log.Fatalln(err.Error())
@@ -68,8 +61,6 @@ func sendDDTraceTask(sender *sender, buf []byte, endpoint string, headers http.H
 	if _, err := ddtraces.UnmarshalMsg(buf); err != nil {
 		log.Fatalln(err.Error())
 	}
-
-	rand.Seed(time.Now().UnixNano())
 
 	wg := sync.WaitGroup{}
 	wg.Add(sender.Threads)
@@ -137,6 +128,7 @@ func shallowCopyDDTrace(src pb.Traces) pb.Traces {
 func modifyTraceID(src pb.Traces) {
 	if len(src) == 0 {
 		log.Println("### empty ddtraces")
+
 		return
 	}
 
