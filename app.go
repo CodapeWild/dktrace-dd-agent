@@ -19,9 +19,9 @@ import (
 var (
 	cfg          *config
 	idflk        *idflaker.IDFlaker
-	globalCloser = make(chan struct{})
+	globalCloser chan struct{}
 	agentAddress = "127.0.0.1:"
-	ddv4         = "/v0.4/traces"
+	path         = "/v0.4/traces"
 )
 
 type sender struct {
@@ -190,9 +190,14 @@ func init() {
 	if err = json.Unmarshal(data, cfg); err != nil {
 		log.Fatalln(err.Error())
 	}
+	if cfg.Sender == nil || cfg.Sender.Threads <= 0 || cfg.Sender.SendCount <= 0 {
+		log.Fatalln("sender not configured properly")
+	}
 	if len(cfg.Trace) == 0 {
 		log.Fatalln("empty trace")
 	}
+
+	globalCloser = make(chan struct{})
 
 	if idflk, err = idflaker.NewIdFlaker(66); err != nil {
 		log.Fatalln(err.Error())
