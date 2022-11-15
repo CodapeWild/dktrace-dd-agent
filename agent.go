@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -53,10 +54,10 @@ func handleDDTraceData(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	go sendDDTraceTask(cfg.Sender, buf, "http://"+cfg.DkAgent+path, req.Header)
+	go sendDDTraceTask(cfg.Sender, buf, fmt.Sprintf("http://%s%s", cfg.DkAgent, path), req.Header)
 }
 
-func sendDDTraceTask(sender *sender, buf []byte, endpoint string, headers http.Header) {
+func sendDDTraceTask(sender *sender, buf []byte, endpoint string, header http.Header) {
 	ddtraces := pb.Traces{}
 	if _, err := ddtraces.UnmarshalMsg(buf); err != nil {
 		log.Fatalln(err.Error())
@@ -79,10 +80,9 @@ func sendDDTraceTask(sender *sender, buf []byte, endpoint string, headers http.H
 
 				req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewReader(buf))
 				if err != nil {
-					log.Println(err.Error())
-					continue
+					log.Fatalln(err.Error())
 				}
-				req.Header = headers
+				req.Header = header
 
 				resp, err := http.DefaultClient.Do(req)
 				if err != nil {
