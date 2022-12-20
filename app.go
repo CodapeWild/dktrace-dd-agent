@@ -97,14 +97,14 @@ func main() {
 	log.Printf("### span count: %d\n", spanCount)
 	log.Printf("### random dump: %v", cfg.RandomDump)
 	if cfg.RandomDump {
+		if cfg.DumpSize <= 0 {
+			cfg.DumpSize = rand.Intn(924) + 100
+		}
 		log.Printf("### dump size: 0kb~%dkb", cfg.DumpSize)
 	} else {
 		log.Printf("### dump size: %dkb", cfg.DumpSize)
 	}
 
-	if cfg.RandomDump && cfg.DumpSize <= 0 {
-		cfg.DumpSize = rand.Intn(1024)
-	}
 	if cfg.RandomDump || cfg.DumpSize > 0 {
 		setPerDumpSize(cfg.Trace, int64(cfg.DumpSize/spanCount)<<10, cfg.RandomDump)
 	}
