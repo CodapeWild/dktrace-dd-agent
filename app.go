@@ -102,11 +102,11 @@ func main() {
 		log.Printf("### dump size: %dkb", cfg.DumpSize)
 	}
 
-	var fillup int64
-	if cfg.RandomDump && cfg.DumpSize > 0 {
-		fillup = int64(cfg.DumpSize / spanCount)
-		fillup <<= 10
-		setPerDumpSize(cfg.Trace, fillup, cfg.RandomDump)
+	if cfg.RandomDump && cfg.DumpSize <= 0 {
+		cfg.DumpSize = rand.Intn(1024)
+	}
+	if cfg.RandomDump || cfg.DumpSize > 0 {
+		setPerDumpSize(cfg.Trace, int64(cfg.DumpSize/spanCount)<<10, cfg.RandomDump)
 	}
 
 	root, children := startRootSpan(cfg.Trace)
@@ -129,14 +129,19 @@ func countSpans(trace []*span, c int) int {
 }
 
 func setPerDumpSize(trace []*span, fillup int64, isRandom bool) {
-	for i := range trace {
-		if isRandom {
+	if isRandom {
+		for i := range trace {
 			trace[i].dumpSize = rand.Int63n(fillup)
-		} else {
-			trace[i].dumpSize = fillup
+			if len(trace[i].Children) != 0 {
+				setPerDumpSize(trace[i].Children, fillup, isRandom)
+			}
 		}
-		if len(trace[i].Children) != 0 {
-			setPerDumpSize(trace[i].Children, fillup, isRandom)
+	} else {
+		for i := range trace {
+			trace[i].dumpSize = fillup
+			if len(trace[i].Children) != 0 {
+				setPerDumpSize(trace[i].Children, fillup, isRandom)
+			}
 		}
 	}
 }
